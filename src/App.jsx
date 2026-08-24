@@ -321,9 +321,7 @@ const DICAS = {
   barra: ["Puxe com as costas, não só com o braço.", "Evite balançar o corpo (kipping) sem intenção.", "Suba até o queixo passar a barra."],
   agachamento: ["Joelhos alinhados com a ponta dos pés.", "Desça controlado, quadril para trás primeiro.", "Mantenha o peito erguido durante o movimento."],
   prancha: ["Não deixe o quadril subir ou cair.", "Contraia o abdômen e o glúteo.", "Respire de forma constante, sem prender o ar."],
-};
-
-function CoachTab() {
+};function CoachTab() {
   const videoRef = useRef(null);
   const [ativo, setAtivo] = useState(false);
   const [erro, setErro] = useState("");
@@ -391,4 +389,51 @@ function CoachTab() {
 
 const inputStyle = { padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.gray}44`, background: C.black, color: C.cream, fontSize: 13, outline: "none" };
 const inputBig = { width: "100%", boxSizing: "border-box", padding: "14px 16px", borderRadius: 10, border: `1px solid ${C.gray}55`, background: C.charcoal, color: C.cream, fontSize: 16, outline: "none" };
-const selSt
+const selStyle = { ...inputStyle, cursor: "pointer" };
+const primaryBtnStyle = { padding: "12px 16px", borderRadius: 10, border: "none", background: C.yellow, color: C.black, fontWeight: 800, fontSize: 13, cursor: "pointer", textTransform: "uppercase", letterSpacing: 0.3 };
+const ghostBtnStyle = { display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 8, border: `1px dashed ${C.gray}66`, background: "transparent", color: C.gray, fontSize: 12, cursor: "pointer" };
+const iconBtnStyle = { padding: 8, borderRadius: 8, border: "none", background: "transparent", cursor: "pointer", flexShrink: 0 };
+const cardStyle = { background: C.charcoal, borderRadius: 12, padding: 14, marginBottom: 10, border: `1px solid ${C.yellow}18` };
+const sectionTitle = { color: C.cream, fontSize: 13, textTransform: "uppercase", letterSpacing: 1, margin: "26px 0 12px", borderLeft: `3px solid ${C.yellow}`, paddingLeft: 10 };
+
+export default function App() {
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState("treino");
+  const [workouts, setWorkouts] = useState([]);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setLoading(false);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  async function refresh() {
+    if (!session) return;
+    const { data } = await supabase
+      .from("workouts")
+      .select("*")
+      .eq("user_id", session.user.id)
+      .order("data", { ascending: false });
+    setWorkouts(data || []);
+  }
+
+  useEffect(() => { if (session) refresh(); }, [session]);
+
+  if (loading) return <div style={{ minHeight: "100vh", background: C.black }} />;
+  if (!session) return <Login />;
+
+  return (
+    <div style={{ minHeight: "100vh", background: C.black, fontFamily: "Inter, system-ui, sans-serif" }}>
+      <TopBar email={session.user.email} tab={tab} setTab={setTab} sair={() => supabase.auth.signOut()} />
+      {tab === "treino" && <TreinoTab userId={session.user.id} workouts={workouts} refresh={refresh} />}
+      {tab === "historico" && <HistoricoTab workouts={workouts} />}
+      {tab === "loja" && <LojaTab />}
+      {tab === "coach" && <CoachTab />}
+      <div style={{ height: 30 }} />
+    </div>
+  );
+}            
